@@ -29,6 +29,12 @@ class Post(BaseModel):
     author: User
 
 
+class PostCreate(BaseModel):
+    title: str
+    body: str
+    author_id: int
+
+
 users = [
     {'id': 1, 'name': 'John Doe', 'age': 30},
     {'id': 2, 'name': 'Диана', 'age': 25},
@@ -63,6 +69,20 @@ posts = [
 @app.get('/items')
 async def items() -> List[Post]:
     return [Post(**post) for post in posts]
+
+
+@app.post('/items/add')
+async def add_item(post: PostCreate) -> Post:
+    author = next((user for user in users if user['id'] == post.author_id), None)
+    if not author:
+        raise HTTPException(status_code=404, detail="User not found")
+    post_dict = post.dict()
+    post_dict['author'] = author
+    post_dict['id'] = len(posts) + 1
+
+    posts.append(post_dict)
+    print(posts)
+    return Post(**post_dict)
 
 
 @app.get('/items/{id}')
