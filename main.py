@@ -1,7 +1,7 @@
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Annotated
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Path, Query, Body
+from pydantic import BaseModel, Field
 
 app = FastAPI()
 
@@ -33,6 +33,15 @@ class PostCreate(BaseModel):
     title: str
     body: str
     author_id: int
+
+
+class UserCreate(BaseModel):
+    name: Annotated[
+        str, Field(..., title='Имя пользователя', min_length=2, max_length=35)
+    ]
+    age: Annotated[
+        int, Field(..., title='Возраст Пользователя', ge=15, lt=120)
+    ]
 
 
 users = [
@@ -86,7 +95,7 @@ async def add_item(post: PostCreate) -> Post:
 
 
 @app.get('/items/{id}')
-async def item(id: int) -> Post:
+async def item(id: Annotated[int, Path(..., ge=0, le=100000, title='ID поста')]):
     for post in posts:
         if post['id'] == id:
             return Post(**post)
@@ -94,7 +103,27 @@ async def item(id: int) -> Post:
 
 
 @app.get('/search')
-async def search(post_id: Optional[int]) -> Post | Dict[str, Optional[Post]]:
+async def search(post_id: Annotated[
+    Optional[int],
+    Query(title='id for post search', ge=10000)
+]) -> Post | Dict[str, Optional[Post]]:
     if post_id:
         return await item(post_id)
     return {"data": None}
+
+
+@app.post('/user/add')
+async def add_user(user: Annotated[
+    UserCreate,
+    Body(..., example=
+        {
+            "name": "userName",
+            "age": "userAge"
+        }
+    )]) -> User:
+    user_dict = user.dict()
+    user_dict['id'] = len(users) + 1
+
+    users.append(user_dict)
+    print(users)
+    return User(**user_dict)
